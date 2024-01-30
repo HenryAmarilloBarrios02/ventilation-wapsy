@@ -2,6 +2,20 @@ import db from '../database/db.js'
 
 import { DataTypes } from 'sequelize'
 
+const SensorModel = db.define('sensors', {
+    serie: { type: DataTypes.STRING },
+    mining: { type: DataTypes.STRING },
+    level: { type: DataTypes.STRING },
+    category: { type: DataTypes.STRING },
+    CO: { type: DataTypes.FLOAT },
+    NO2: { type: DataTypes.FLOAT },
+    CO2: { type: DataTypes.FLOAT },
+    O2: { type: DataTypes.FLOAT },
+    temperatura: { type: DataTypes.FLOAT },
+    humedad: { type: DataTypes.FLOAT },
+    timestamp: { type: DataTypes.BIGINT }
+})
+
 const SafetyModel = db.define('safety', {
     serie: { type: DataTypes.STRING },
     mining: { type: DataTypes.STRING },
@@ -62,4 +76,4 @@ const GasModel = db.define('gases', {
 
 db.sync()
 
-export {SafetyModel, VentilationModel, TiModel, NotificationModel, GasModel}
+export { SensorModel, SafetyModel, VentilationModel, TiModel, NotificationModel, GasModel}

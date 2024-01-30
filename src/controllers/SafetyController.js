@@ -1,34 +1,54 @@
 import { SafetyModel } from '../models/DataModel.js'
 
-export const getData = async (req, res) => {
+export const getAllSafeties = async (req, res) => {
     try {
-        const data = await SafetyModel.findAll()
-        res.json(data)
+        const safeties = await SafetyModel.findAll()
+
+        return res.json(safeties)
+
     } catch (error) {
         res.json({ message: error })
     }
 }
 
-export const createData = async (req, res) => {
+export const getSafety = async (req, res) => {
     try {
-        const data = await SafetyModel.create({
-            name: req.body.name,
-            lastname: req.body.lastname,
+        const safetyId = req.params.safetyId
+
+        const safety = await SafetyModel.findOne({
+            where: { id: safetyId }
         })
+
+        if(!safety) {
+            return res.json({ status: false, message: 'No existen datos del safety' })
+        }
+
+        return res.json(safety)
         
     } catch (error) {
         res.json({ message: error })
     }
 }
 
-export const deleteData = async (req, res) => {
+export const deleteSafety = async (req, res) => {
     try {
-        const data = await SafetyModel.destroy({
-            where: {
-                id: req.params.id
-            }
+
+        const safetyId = req.params.safetyId
+
+        const safety = await SafetyModel.findOne({
+            where: { id: safetyId }
         })
-        res.json(data)
+
+        if(!safety) {
+            return res.json({ status: false, message: 'Datos del safety no encontrado' })
+        } else {
+            const safety = await SafetyModel.destroy({
+                where: { id: safetyId }
+            })
+
+            return res.status(200).json({ status: true, message: 'Se ha eliminado al safety' })
+        }
+
     } catch (error) {
         res.json({ message: error })
     }

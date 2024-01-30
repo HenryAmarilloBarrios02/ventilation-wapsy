@@ -5,7 +5,7 @@ import bodyParser from 'body-parser'
 import axios from 'axios'
 
 import './database/db.js'
-import { SafetyModel, VentilationModel, TiModel, NotificationModel, GasModel } from './models/DataModel.js'
+import { SensorModel, SafetyModel, VentilationModel, TiModel, NotificationModel, GasModel } from './models/DataModel.js'
 
 import cors from 'cors'
 
@@ -20,6 +20,7 @@ import { Server } from 'socket.io'
 import { Pool } from 'pg'
 
 import safetyRoutes from './routes/safety.routes.js'
+import notificationRoutes from './routes/notification.routes.js'
 import gasRoutes from './routes/gas.routes.js'
 
 const app = express()
@@ -48,6 +49,7 @@ app.use(express.json())
 
 const routes = [
     safetyRoutes,
+    notificationRoutes,
     gasRoutes
 ]
 
@@ -114,8 +116,8 @@ const fan = (v1, v2) => {
 //     modbus.setID(10)
 //     const result = await modbus.readCoils(0, 6)
 //     const data = result.data
-//     fan(1, 1, 1, 1)
-//     console.log(data)
+//     const data1 = data.map(i => i ? 1 : 0)
+//     console.log(data1)
 // }, 1000)
 
 class Device {
@@ -462,7 +464,7 @@ setInterval( async() => {
     if (!lowStatus && !highStatus) {
         fan(1, 1)
         vent = {v1: false, v2: false}
-        console.log('VENTILACION APAGADA')
+        // console.log('VENTILACION APAGADA')
     }
 
     if (lowAlarm.lenght > 0 && !highStatus) {
@@ -470,7 +472,7 @@ setInterval( async() => {
         lowStatus = true
         lowCount = 0
         vent = {v1: true, v2: false}
-        console.log('VENTILACION ENCENDIDA')
+        // console.log('VENTILACION ENCENDIDA')
     } else {
         if (lowStatus && !highStatus) {
             lowCount++
@@ -479,7 +481,7 @@ setInterval( async() => {
                 vent = {v1: false, v2: false}
                 lowStatus = false
                 lowCount = 0
-                console.log('VENTILACION APAGADA')
+                // console.log('VENTILACION APAGADA')
             }
         }
     }
@@ -489,7 +491,7 @@ setInterval( async() => {
         highStatus = true
         highCount = 0
         vent = {v1: true, v2: true}
-        console.log('VENTILACION ENCENDIDA')
+        // console.log('VENTILACION ENCENDIDA')
     } else {
         if (highStatus) {
             highCount++
@@ -505,7 +507,7 @@ setInterval( async() => {
 
     for (let i in USERS) {
         USERS[i].emit('data', controller1)
-    USERS[i].emit('vent', vent)
+        USERS[i].emit('vent', vent)
     }
 
     const alarmas = controller1.devices.filter(i => i.msg != 'OK')
@@ -844,6 +846,24 @@ setInterval( async() => {
     // SAVE LOCAL
     const controller1 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_SA, devices1, new Date().getTime())
     const controller2 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_VE, devices2, new Date().getTime())
+
+    // if (controller1.devices.lenght > 0) {
+        // const sensor = new SensorModel({
+        //     serie: process.env.SERIE,
+        //     mining: process.env.DEVICE_NAME,
+        //     level: process.env.LEVEL,
+        //     category: process.env.CATEGORY_SA,
+        //     CO: controller1.devices[0].value,
+        //     NO2: controller1.devices[1].value,
+        //     CO2: controller1.devices[2].value,
+        //     O2: controller1.devices[3].value,
+        //     temperatura: controller2.devices[0].value,
+        //     humedad: controller2.devices[1].value,
+        //     timestamp: controller1.timestamp
+        // })
+
+        // await sensor.save()
+    // }
 
     if (controller1.devices.length > 0) {
         const safety = new SafetyModel({
