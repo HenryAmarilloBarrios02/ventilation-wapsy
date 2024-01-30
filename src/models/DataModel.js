@@ -28,7 +28,7 @@ const SafetyModel = db.define('safety', {
     timestamp: { type: DataTypes.BIGINT }
 })
 
-const VentilationModel = db.define('ventilations', {
+const VentilationModel = db.define('vents', {
     serie: { type: DataTypes.STRING },
     mining: { type: DataTypes.STRING },
     level: { type: DataTypes.STRING },
@@ -62,6 +62,20 @@ const NotificationModel = db.define('notifications', {
     timestamp: { type: DataTypes.BIGINT }
 })
 
+const AutoVentModel = db.define('autovents', {
+    serie: { type: DataTypes.STRING },
+    mining: { type: DataTypes.STRING },
+    level: { type: DataTypes.STRING },
+    category: { type: DataTypes.STRING },
+    vent1: { type: DataTypes.INTEGER },
+    vent2: { type: DataTypes.INTEGER },
+    vent3: { type: DataTypes.INTEGER },
+    vent4: { type: DataTypes.INTEGER },
+    statusOperation: { type: DataTypes.INTEGER },
+    statusEnergy: { type: DataTypes.INTEGER },
+    timestamp: { type: DataTypes.BIGINT }
+})
+
 const GasModel = db.define('gases', {
     name: { type: DataTypes.STRING },
     unit: { type: DataTypes.STRING },
@@ -76,4 +90,4 @@ const GasModel = db.define('gases', {
 
 db.sync()
 
-export { SensorModel, SafetyModel, VentilationModel, TiModel, NotificationModel, GasModel}
+export { SensorModel, SafetyModel, VentilationModel, TiModel, NotificationModel, AutoVentModel, GasModel}

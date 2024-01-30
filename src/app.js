@@ -5,7 +5,7 @@ import bodyParser from 'body-parser'
 import axios from 'axios'
 
 import './database/db.js'
-import { SensorModel, SafetyModel, VentilationModel, TiModel, NotificationModel, GasModel } from './models/DataModel.js'
+import { SensorModel, SafetyModel, VentilationModel, TiModel, NotificationModel, AutoVentModel, GasModel } from './models/DataModel.js'
 
 import cors from 'cors'
 
@@ -103,22 +103,44 @@ modbus.connectRTUBuffered(process.env.COM_PORT, { baudRate: 9600 }, () => {
 //     client.subscribe(`${process.env.SERIE}`)
 // })
 
-const fan = (v1, v2) => {
-    modbus.setID(10)
-    modbus.writeCoils(0, [v1, v2])
-}
-// const fan = (v1, v2, v3, v4) => {
+// const fan = (v1, v2) => {
 //     modbus.setID(10)
-//     modbus.writeCoils(0, [v1, v2, v3, v4])
+//     modbus.writeCoils(0, [v1, v2])
 // }
 
-// setInterval( async() => {
-//     modbus.setID(10)
-//     const result = await modbus.readCoils(0, 6)
-//     const data = result.data
-//     const data1 = data.map(i => i ? 1 : 0)
-//     console.log(data1)
-// }, 1000)
+const fan = (v1, v2, v3, v4) => {
+    modbus.setID(10)
+    modbus.writeCoils(0, [v1, v2, v3, v4])
+}
+
+setInterval( async() => {
+    try {
+        modbus.setID(10)
+        const result = await modbus.readCoils(0, 6)
+        const data = result.data
+        const datas = data.map(i => i ? 1 : 0)
+
+        const autovent = new AutoVentModel({
+            serie: process.env.SERIE,
+            mining: process.env.DEVICE_NAME,
+            level: process.env.LEVEL,
+            category: process.env.CATEGORY_SA,
+            vent1: datas[0],
+            vent2: datas[1],
+            vent3: datas[2],
+            vent4: datas[3],
+            statusOperation: datas[4],
+            statusEnergy: datas[5],
+            timestamp: new Date().getTime()
+        })
+            
+        await autovent.save()
+
+    } catch (error) {
+        console.log('ERROR - HORROR')
+        return null
+    }
+}, 70005)
 
 class Device {
     constructor (name, value, und, status, msg, type, serie, min1, min2, max1, max2) {
@@ -368,23 +390,40 @@ const timeDelay = 30 * 15
 
 let vent = {
     v1: false,
-    v2: false
+    v2: false,
+    v3: false,
+    v4: false
 }
 
 // REAL TIME - SAFETY AND VENTILATION
 
 setInterval( async() => {
 
-    const response = await axios.get(`${process.env.SERVER_URL}/wapsi`)
-    const gases = response.data
-    const nms = gases.name
-    const unds = gases.unit
-    const series = gases.serie
-    const types = gases.type
-    const mins1 = gases.min1
-    const mins2 = gases.min2
-    const maxs1 = gases.max1
-    const maxs2 = gases.max2
+    // const response = await axios.get(`${process.env.SERVER_URL}/wapsi`)
+    // const gases = response.data
+    // const nms = gases.name
+    // const unds = gases.unit
+    // const series = gases.serie
+    // const types = gases.type
+    // const mins1 = gases.min1
+    // const mins2 = gases.min2
+    // const maxs1 = gases.max1
+    // const maxs2 = gases.max2
+
+    const gases = await GasModel.findAll({
+        order: [
+            ['id', 'ASC']
+        ]
+    })
+
+    const nms = gases.map(gas => gas.name)
+    const unds = gases.map(gas => gas.unit)
+    const series = gases.map(gas => gas.serie)
+    const types = gases.map(gas => gas.type)
+    const mins1 = gases.map(gas => gas.min1)
+    const mins2 = gases.map(gas => gas.min2)
+    const maxs1 = gases.map(gas => gas.max1)
+    const maxs2 = gases.map(gas => gas.max2)
 
     let devices1 = []
     let devices2 = []
@@ -462,13 +501,13 @@ setInterval( async() => {
     // console.log(lowAlarm, highAlarm, lowStatus, highStatus)
 
     if (!lowStatus && !highStatus) {
-        fan(1, 1)
+        fan(1, 1, 1, 1)
         vent = {v1: false, v2: false}
         // console.log('VENTILACION APAGADA')
     }
 
     if (lowAlarm.lenght > 0 && !highStatus) {
-        fan(1, 0)
+        fan(1, 0, 0, 0)
         lowStatus = true
         lowCount = 0
         vent = {v1: true, v2: false}
@@ -477,7 +516,7 @@ setInterval( async() => {
         if (lowStatus && !highStatus) {
             lowCount++
             if (lowCount > timeDelay) {
-                fan(0, 0)
+                fan(0, 0, 0 ,0)
                 vent = {v1: false, v2: false}
                 lowStatus = false
                 lowCount = 0
@@ -487,7 +526,7 @@ setInterval( async() => {
     }
 
     if (highAlarm.lenght > 0){
-        fan(1, 1)
+        fan(1, 1, 0, 0)
         highStatus = true
         highCount = 0
         vent = {v1: true, v2: true}
@@ -496,7 +535,7 @@ setInterval( async() => {
         if (highStatus) {
             highCount++
             if (highCount > timeDelay) {
-                fan(1, 0)
+                fan(1, 0, 0 ,0)
                 highStatus = false
                 lowStatus = true
                 highCount = 0
@@ -769,16 +808,31 @@ setInterval( async () => {
 
 setInterval( async() => {
 
-    const response = await axios.get(`${process.env.SERVER_URL}/wapsi`)
-    const gases = response.data
-    const nms = gases.name
-    const unds = gases.unit
-    const series = gases.serie
-    const types = gases.type
-    const mins1 = gases.min1
-    const mins2 = gases.min2
-    const maxs1 = gases.max1
-    const maxs2 = gases.max2
+    // const response = await axios.get(`${process.env.SERVER_URL}/wapsi`)
+    // const gases = response.data
+    // const nms = gases.name
+    // const unds = gases.unit
+    // const series = gases.serie
+    // const types = gases.type
+    // const mins1 = gases.min1
+    // const mins2 = gases.min2
+    // const maxs1 = gases.max1
+    // const maxs2 = gases.max2
+
+    const gases = await GasModel.findAll({
+        order: [
+            ['id', 'ASC']
+        ]
+    })
+
+    const nms = gases.map(gas => gas.name)
+    const unds = gases.map(gas => gas.unit)
+    const series = gases.map(gas => gas.serie)
+    const types = gases.map(gas => gas.type)
+    const mins1 = gases.map(gas => gas.min1)
+    const mins2 = gases.map(gas => gas.min2)
+    const maxs1 = gases.map(gas => gas.max1)
+    const maxs2 = gases.map(gas => gas.max2)
 
     let devices1 = []
     let devices2 = []
