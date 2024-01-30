@@ -13,7 +13,7 @@ import { config } from 'dotenv'
 config()
 
 import { generateGases } from './libs/generateGases.js'
-// generateGases()
+generateGases()
 
 import { Server } from 'socket.io'
 
@@ -94,12 +94,17 @@ modbus.connectRTUBuffered(process.env.COM_PORT, { baudRate: 9600 }, () => {
     console.log('Connected to IOT')
 })
 
-const client = mqtt.connect(process.env.MQTT_URL, options)
-client.on('connect', () => {
-    console.log('Connected to MQTT')
-    client.subscribe(`${process.env.SERIE}`)
-})
+// COMENTAR CONEXION AL EMQX
+// const client = mqtt.connect(process.env.MQTT_URL, options)
+// client.on('connect', () => {
+//     console.log('Connected to MQTT')
+//     client.subscribe(`${process.env.SERIE}`)
+// })
 
+const fan = (v1, v2) => {
+    modbus.setID(10)
+    modbus.writeCoils(0, [v1, v2])
+}
 // const fan = (v1, v2, v3, v4) => {
 //     modbus.setID(10)
 //     modbus.writeCoils(0, [v1, v2, v3, v4])
@@ -109,7 +114,7 @@ client.on('connect', () => {
 //     modbus.setID(10)
 //     const result = await modbus.readCoils(0, 6)
 //     const data = result.data
-//     fan(1, 0, 0, 1)
+//     fan(1, 1, 1, 1)
 //     console.log(data)
 // }, 1000)
 
@@ -153,13 +158,13 @@ class Notification {
 
 // SAFETY AND VENTILATION
 
-const nms = ['CO', 'NO2', 'CO2', 'O2', 'Temperatura', 'Humedad']
-const unds = ['ppm', 'ppm', '%vol', '%vol', '°C', '%RH']
-const series = ['S0001', 'S0002', 'S0003', 'S0004', 'S0005', 'S0006']
-const mins1 = [-1, -1, -1, 15, -20, 0]
-const mins2 = [-1, -1, -1, 19.5, -15, 20]
-const maxs1 = [25, 3, 2.5, 23.5, 40, 120]
-const maxs2 = [50, 5, 3, 25, 45, 150]
+// const nms = ['CO', 'NO2', 'CO2', 'O2', 'Temperatura', 'Humedad']
+// const unds = ['ppm', 'ppm', '%vol', '%vol', '°C', '%RH']
+// const series = ['S0001', 'S0002', 'S0003', 'S0004', 'S0005', 'S0006']
+// const mins1 = [-1, -1, -1, 15, -20, 0]
+// const mins2 = [-1, -1, -1, 19.5, -15, 20]
+// const maxs1 = [25, 3, 2.5, 23.5, 40, 120]
+// const maxs2 = [50, 5, 3, 25, 45, 150]
 
 let statusNotification = false
 
@@ -172,7 +177,7 @@ async function readModbusData(id, reg, len) {
         return data
     } catch (error) {
         console.log('ERROR - HORROR')
-        return null;
+        return null
     }
 }
 
@@ -344,7 +349,7 @@ setInterval(async () => {
 
                 // SEND REALTIME - BROCKER - SERVER
                 const controller = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_TI, devices, new Date().getTime())
-                client.publish(process.env.TOPIC, JSON.stringify(controller))
+                // client.publish(process.env.TOPIC, JSON.stringify(controller))
             }
         }
     }
@@ -352,18 +357,32 @@ setInterval(async () => {
 
 // REAL TIME - SAFETY AND VENTILATION
 
+let lowStatus = false
+let highStatus = false
+let lowCount = 0
+let highCount = 0
+
+const timeDelay = 30 * 15
+
+let vent = {
+    v1: false,
+    v2: false
+}
+
+// REAL TIME - SAFETY AND VENTILATION
+
 setInterval( async() => {
 
-    // const response = await axios.get(`${process.env.SERVER_URL}/wapsi`)
-    // const gases = response.data
-    // const nms = gases.name
-    // const unds = gases.unit
-    // const series = gases.serie
-    // const types = gases.type
-    // const mins1 = gases.min1
-    // const mins2 = gases.min2
-    // const maxs1 = gases.max1
-    // const maxs2 = gases.max2
+    const response = await axios.get(`${process.env.SERVER_URL}/wapsi`)
+    const gases = response.data
+    const nms = gases.name
+    const unds = gases.unit
+    const series = gases.serie
+    const types = gases.type
+    const mins1 = gases.min1
+    const mins2 = gases.min2
+    const maxs1 = gases.max1
+    const maxs2 = gases.max2
 
     let devices1 = []
     let devices2 = []
@@ -391,7 +410,7 @@ setInterval( async() => {
                 MsgStatus = 'ALERTA NIVEL MUY ALTO'
             }
 
-            const device1 = new Device(nms[i], value, unds[i], AlarmStatus, MsgStatus, 'sa', series[i], mins1[i], mins2[i], maxs1[i], maxs2[i])
+            const device1 = new Device(nms[i], value, unds[i], AlarmStatus, MsgStatus, types[i], series[i], mins1[i], mins2[i], maxs1[i], maxs2[i])
             devices1 = [...devices1, device1]
         }
 
@@ -415,7 +434,7 @@ setInterval( async() => {
                 MsgStatus = 'ALERTA NIVEL MUY ALTO'
             }
 
-            const device2 = new Device(nms[i], value, unds[i], AlarmStatus, MsgStatus, 'sa', series[i], mins1[i], mins2[i], maxs1[i], maxs2[i])
+            const device2 = new Device(nms[i], value, unds[i], AlarmStatus, MsgStatus, types[i], series[i], mins1[i], mins2[i], maxs1[i], maxs2[i])
             devices2 = [...devices2, device2]
         }
     }
@@ -424,8 +443,8 @@ setInterval( async() => {
     const controller1 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_SA, devices1, new Date().getTime())
     const controller2 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_VE, devices2, new Date().getTime())
 
-    client.publish(process.env.TOPIC, JSON.stringify(controller1))
-    client.publish(process.env.TOPIC, JSON.stringify(controller2))
+    // client.publish(process.env.TOPIC, JSON.stringify(controller1))
+    // client.publish(process.env.TOPIC, JSON.stringify(controller2))
 
     const highAlarm = devices1.filter(device => device.status === 'Red')
     const lowAlarm = devices1.filter(device => device.status === 'Yellow')
@@ -436,6 +455,57 @@ setInterval( async() => {
         ledYellow()
     } else {
         ledGreen()
+    }
+
+    // console.log(lowAlarm, highAlarm, lowStatus, highStatus)
+
+    if (!lowStatus && !highStatus) {
+        fan(1, 1)
+        vent = {v1: false, v2: false}
+        console.log('VENTILACION APAGADA')
+    }
+
+    if (lowAlarm.lenght > 0 && !highStatus) {
+        fan(1, 0)
+        lowStatus = true
+        lowCount = 0
+        vent = {v1: true, v2: false}
+        console.log('VENTILACION ENCENDIDA')
+    } else {
+        if (lowStatus && !highStatus) {
+            lowCount++
+            if (lowCount > timeDelay) {
+                fan(0, 0)
+                vent = {v1: false, v2: false}
+                lowStatus = false
+                lowCount = 0
+                console.log('VENTILACION APAGADA')
+            }
+        }
+    }
+
+    if (highAlarm.lenght > 0){
+        fan(1, 1)
+        highStatus = true
+        highCount = 0
+        vent = {v1: true, v2: true}
+        console.log('VENTILACION ENCENDIDA')
+    } else {
+        if (highStatus) {
+            highCount++
+            if (highCount > timeDelay) {
+                fan(1, 0)
+                highStatus = false
+                lowStatus = true
+                highCount = 0
+                vent = {v1: true, v2: false}
+            }
+        }
+    }
+
+    for (let i in USERS) {
+        USERS[i].emit('data', controller1)
+    USERS[i].emit('vent', vent)
     }
 
     const alarmas = controller1.devices.filter(i => i.msg != 'OK')
@@ -462,8 +532,8 @@ setInterval( async() => {
                             timestamp: notification.timestamp
                         })
 
-                        // SAVE SERVER
-                        client.publish(process.env.NOTIFY, JSON.stringify(notification))
+                        // SAVE SERVER - BROCKER
+                        // client.publish(process.env.NOTIFY, JSON.stringify(notification))
                 })
                 statusNotification = true
         }
@@ -508,9 +578,9 @@ setInterval( async () => {
                 const device = new Device('Voltaje', value, 'V', AlarmStatus, MsgStatus, 'sa', 'S0007', 180, 210, 240, 250)
                 devices = [...devices, device]
 
-                // SAVE SERVER
+                // SAVE SERVER - BROCKER
                 const controller1 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_TI, device, new Date().getTime())
-                client.publish(process.env.SAVE, JSON.stringify(controller1))
+                // client.publish(process.env.SAVE, JSON.stringify(controller1))
 
             } else if (i === 1) {
                 const value = data[i]
@@ -537,9 +607,9 @@ setInterval( async () => {
                 const device1 = new Device('Temperatura', value, '°C', AlarmStatus1, MsgStatus1, 'sa', 'S0008', -20, -15, 40, 45)
                 devices = [...devices, device1]
 
-                // SAVE SERVER
+                // SAVE SERVER - BROCKER
                 const controller2 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_TI, device1, new Date().getTime())
-                client.publish(process.env.SAVE, JSON.stringify(controller2))
+                // client.publish(process.env.SAVE, JSON.stringify(controller2))
 
             } else if (i === 2) {
                 const value = data[i]
@@ -566,9 +636,9 @@ setInterval( async () => {
                 const device2 = new Device('Humedad', value, '%RH', AlarmStatus2, MsgStatus2, 'sa', 'S0009', -1, 20, 120, 150)
                 devices = [...devices, device2]
 
-                // SAVE SERVER
+                // SAVE SERVER - BROCKER
                 const controller3 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_TI, device2, new Date().getTime())
-                client.publish(process.env.SAVE, JSON.stringify(controller3))
+                // client.publish(process.env.SAVE, JSON.stringify(controller3))
 
             } else if (i === 3) {
                 const value = data[i]
@@ -590,9 +660,9 @@ setInterval( async () => {
                 const device3 = new Device('Bateria', value, '%', AlarmStatus3, MsgStatus3, 'sa', 'S0010', -1, 15, 35, 100)
                 devices = [...devices, device3]
 
-                // SAVE SERVER
+                // SAVE SERVER - BROCKER
                 const controller4 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_TI, device3, new Date().getTime())
-                client.publish(process.env.SAVE, JSON.stringify(controller4))
+                // client.publish(process.env.SAVE, JSON.stringify(controller4))
 
             } else if (i === 4) {
                 const value = data[i]
@@ -611,9 +681,9 @@ setInterval( async () => {
                 const device4 = new Device('Door Backup', value, '', AlarmStatus4, MsgStatus4, 'sd', 'S0011', '', '', '', '')
                 devices = [...devices, device4]
 
-                // SAVE SERVER
+                // SAVE SERVER - BROCKER
                 const controller5 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_TI, device4, new Date().getTime())
-                client.publish(process.env.SAVE, JSON.stringify(controller5))
+                // client.publish(process.env.SAVE, JSON.stringify(controller5))
 
             } else if (i === 5) {
                 const value = data[i] / 1000
@@ -640,9 +710,9 @@ setInterval( async () => {
                 const device5 = new Device('Corriente', value, 'A', AlarmStatus5, MsgStatus5, 'sa', 'S0012', -1, 0, 20, 50)
                 devices = [...devices, device5]
 
-                // SAVE SERVER
+                // SAVE SERVER - BROCKER
                 const controller6 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_TI, device5, new Date().getTime())
-                client.publish(process.env.SAVE, JSON.stringify(controller6))
+                // client.publish(process.env.SAVE, JSON.stringify(controller6))
 
                 // WAPSI SYTEM READING
 
@@ -662,9 +732,9 @@ setInterval( async () => {
                 const device6 = new Device('Door System', pruebita, '', AlarmStatus6, MsgStatus6, 'sd', 'S0013', '', '', '', '')
                 devices = [...devices, device6]
 
-                // SAVE SERVER
+                // SAVE SERVER - BROCKER
                 const controller7 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_TI, device6, new Date().getTime())
-                client.publish(process.env.SAVE, JSON.stringify(controller7))
+                // client.publish(process.env.SAVE, JSON.stringify(controller7))
             }
         }
     }
@@ -672,26 +742,41 @@ setInterval( async () => {
     const controller = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_TI, devices, new Date().getTime())
 
     // SAVE LOCAL
-    await TiModel.create({
-        serie: process.env.SERIE,
-        mining: process.env.DEVICE_NAME,
-        level: process.env.LEVEL,
-        category: process.env.CATEGORY_TI,
-        voltaje: controller.devices[0].value,
-        temperatura: controller.devices[1].value,
-        humedad: controller.devices[2].value,
-        bateria: controller.devices[3].value,
-        door_backup: controller.devices[4].value,
-        corriente: controller.devices[5].value,
-        door_system: controller.devices[6].value,
-        timestamp: controller.timestamp
-    })
+    if (controller.devices.lenght > 0) {
+        const ti = new TiModel({
+            serie: process.env.SERIE,
+            mining: process.env.DEVICE_NAME,
+            level: process.env.LEVEL,
+            category: process.env.CATEGORY_TI,
+            voltaje: controller.devices[0].value,
+            temperatura: controller.devices[1].value,
+            humedad: controller.devices[2].value,
+            bateria: controller.devices[3].value,
+            door_backup: controller.devices[4].value,
+            corriente: controller.devices[5].value,
+            door_system: controller.devices[6].value,
+            timestamp: controller.timestamp
+        })
+
+        await ti.save()
+    }
 
 }, 65005)
 
 // SAVE DATA - SAFETY AND VENTILATION
 
 setInterval( async() => {
+
+    const response = await axios.get(`${process.env.SERVER_URL}/wapsi`)
+    const gases = response.data
+    const nms = gases.name
+    const unds = gases.unit
+    const series = gases.serie
+    const types = gases.type
+    const mins1 = gases.min1
+    const mins2 = gases.min2
+    const maxs1 = gases.max1
+    const maxs2 = gases.max2
 
     let devices1 = []
     let devices2 = []
@@ -719,12 +804,12 @@ setInterval( async() => {
                 MsgStatus = 'ALERTA NIVEL MUY ALTO'
             }
 
-            const device1 = new Device(nms[i], value, unds[i], AlarmStatus, MsgStatus, 'sa', series[i], mins1[i], mins2[i], maxs1[i], maxs2[i])
+            const device1 = new Device(nms[i], value, unds[i], AlarmStatus, MsgStatus, types[i], series[i], mins1[i], mins2[i], maxs1[i], maxs2[i])
             devices1 = [...devices1, device1]
 
-            // SAVE SERVER SAFETY
+            // SAVE SERVER - BROCKER
             const controller = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_SA, device1, new Date().getTime())
-            client.publish(process.env.SAVE, JSON.stringify(controller))
+            // client.publish(process.env.SAVE, JSON.stringify(controller))
         }
 
         // VENTILATION
@@ -747,40 +832,48 @@ setInterval( async() => {
                 MsgStatus = 'ALERTA NIVEL MUY ALTO'
             }
 
-            const device2 = new Device(nms[i], value, unds[i], AlarmStatus, MsgStatus, 'sa', series[i], mins1[i], mins2[i], maxs1[i], maxs2[i])
+            const device2 = new Device(nms[i], value, unds[i], AlarmStatus, MsgStatus, types[i], series[i], mins1[i], mins2[i], maxs1[i], maxs2[i])
             devices2 = [...devices2, device2]
 
-            // SAVE SERVER VENTILATION
+            // SAVE SERVER - BROCKER
             const controller = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_SA, device2, new Date().getTime())
-            client.publish(process.env.SAVE, JSON.stringify(controller))
+            // client.publish(process.env.SAVE, JSON.stringify(controller))
         }
     }
 
+    // SAVE LOCAL
     const controller1 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_SA, devices1, new Date().getTime())
     const controller2 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_VE, devices2, new Date().getTime())
-    
-    // SAVE LOCAL
-    await SafetyModel.create({
-        serie: process.env.SERIE,
-        mining: process.env.DEVICE_NAME,
-        level: process.env.LEVEL,
-        category: process.env.CATEGORY_SA,
-        CO: controller1.devices[0].value,
-        NO2: controller1.devices[1].value,
-        CO2: controller1.devices[2].value,
-        O2: controller1.devices[3].value,
-        timestamp: controller1.timestamp
-    })
 
-    await VentilationModel.create({
-        serie: process.env.SERIE,
-        mining: process.env.DEVICE_NAME,
-        level: process.env.LEVEL,
-        category: process.env.CATEGORY_VE,
-        temperatura: controller2.devices[0].value,
-        humedad: controller2.devices[1].value,
-        timestamp: controller2.timestamp
-    })
+    if (controller1.devices.length > 0) {
+        const safety = new SafetyModel({
+            serie: process.env.SERIE,
+            mining: process.env.DEVICE_NAME,
+            level: process.env.LEVEL,
+            category: process.env.CATEGORY_SA,
+            CO: controller1.devices[0].value,
+            NO2: controller1.devices[1].value,
+            CO2: controller1.devices[2].value,
+            O2: controller1.devices[3].value,
+            timestamp: controller1.timestamp
+        })
+
+        await safety.save()
+    }
+    
+    if (controller2.devices.length > 0) {
+        const ventilation = new VentilationModel({
+            serie: process.env.SERIE,
+            mining: process.env.DEVICE_NAME,
+            level: process.env.LEVEL,
+            category: process.env.CATEGORY_VE,
+            temperatura: controller2.devices[0].value,
+            humedad: controller2.devices[1].value,
+            timestamp: controller2.timestamp
+        })
+
+        await ventilation.save()
+    }
 
 }, 60005)
 
