@@ -113,7 +113,7 @@ const fan = (v1, v2, v3, v4) => {
     modbus.writeCoils(0, [v1, v2, v3, v4])
 }
 
-setInterval( async() => {
+setInterval(async () => {
     try {
         modbus.setID(10)
         const result = await modbus.readCoils(0, 6)
@@ -133,7 +133,7 @@ setInterval( async() => {
             statusEnergy: datas[5],
             timestamp: new Date().getTime()
         })
-            
+
         await autovent.save()
 
     } catch (error) {
@@ -143,7 +143,7 @@ setInterval( async() => {
 }, 70005)
 
 class Device {
-    constructor (name, value, und, status, msg, type, serie, min1, min2, max1, max2) {
+    constructor(name, value, und, status, msg, type, serie, min1, min2, max1, max2) {
         this.name = name
         this.value = value
         this.und = und
@@ -159,7 +159,7 @@ class Device {
 }
 
 class Controller {
-    constructor (serie, mining, level , category, devices, timestamp) {
+    constructor(serie, mining, level, category, devices, timestamp) {
         this.serie = serie
         this.mining = mining
         this.level = level
@@ -170,7 +170,7 @@ class Controller {
 }
 
 class Notification {
-    constructor (description, serie, value, name, msg, timestamp) {
+    constructor(description, serie, value, name, msg, timestamp) {
         this.description = description
         this.serie = serie
         this.value = value
@@ -211,10 +211,10 @@ setInterval(async () => {
 
     let devices = []
 
-    const data = await readModbusData(1, 0, 6);
-    
+    const data = await readModbusData(1, 0, 6)
+
     if (data) {
-        for (let i = 0; i < 6; i++){
+        for (let i = 0; i < 6; i++) {
 
             if (i === 0) {
                 const value = data[i]
@@ -397,7 +397,7 @@ let vent = {
 
 // REAL TIME - SAFETY AND VENTILATION
 
-setInterval( async() => {
+setInterval(async () => {
 
     // const response = await axios.get(`${process.env.SERVER_URL}/wapsi`)
     // const gases = response.data
@@ -479,7 +479,7 @@ setInterval( async() => {
             devices2 = [...devices2, device2]
         }
     }
-    
+
     // SEND REALTIME - BROCKER - SERVER
     const controller1 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_SA, devices1, new Date().getTime())
     const controller2 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_VE, devices2, new Date().getTime())
@@ -502,7 +502,7 @@ setInterval( async() => {
 
     if (!lowStatus && !highStatus) {
         fan(1, 1, 1, 1)
-        vent = {v1: false, v2: false}
+        vent = { v1: false, v2: false }
         // console.log('VENTILACION APAGADA')
     }
 
@@ -510,14 +510,14 @@ setInterval( async() => {
         fan(1, 0, 0, 0)
         lowStatus = true
         lowCount = 0
-        vent = {v1: true, v2: false}
+        vent = { v1: true, v2: false }
         // console.log('VENTILACION ENCENDIDA')
     } else {
         if (lowStatus && !highStatus) {
             lowCount++
             if (lowCount > timeDelay) {
-                fan(0, 0, 0 ,0)
-                vent = {v1: false, v2: false}
+                fan(0, 0, 0, 0)
+                vent = { v1: false, v2: false }
                 lowStatus = false
                 lowCount = 0
                 // console.log('VENTILACION APAGADA')
@@ -525,21 +525,21 @@ setInterval( async() => {
         }
     }
 
-    if (highAlarm.lenght > 0){
+    if (highAlarm.lenght > 0) {
         fan(1, 1, 0, 0)
         highStatus = true
         highCount = 0
-        vent = {v1: true, v2: true}
+        vent = { v1: true, v2: true }
         // console.log('VENTILACION ENCENDIDA')
     } else {
         if (highStatus) {
             highCount++
             if (highCount > timeDelay) {
-                fan(1, 0, 0 ,0)
+                fan(1, 0, 0, 0)
                 highStatus = false
                 lowStatus = true
                 highCount = 0
-                vent = {v1: true, v2: false}
+                vent = { v1: true, v2: false }
             }
         }
     }
@@ -552,31 +552,31 @@ setInterval( async() => {
     const alarmas = controller1.devices.filter(i => i.msg != 'OK')
     if (alarmas.length > 0) {
         if (!statusNotification) {
-                alarmas.forEach(i => {
+            alarmas.forEach(i => {
 
-                        const notification = new Notification(
-                                `Alarma ${controller1.mining}: En ${controller1.level}, sensor ${i.name} con el mensaje ${i.msg}`,
-                                controller1.serie,
-                                i.value,
-                                i.name,
-                                i.msg,
-                                new Date().getTime()
-                        )
-                        
-                        // SAVE LOCAL
-                        NotificationModel.create({
-                            description: notification.description,
-                            serie: notification.serie,
-                            value: notification.value,
-                            name: notification.name,
-                            msg: notification.msg,
-                            timestamp: notification.timestamp
-                        })
+                const notification = new Notification(
+                    `Alarma ${controller1.mining}: En ${controller1.level}, sensor ${i.name} con el mensaje ${i.msg}`,
+                    controller1.serie,
+                    i.value,
+                    i.name,
+                    i.msg,
+                    new Date().getTime()
+                )
 
-                        // SAVE SERVER - BROCKER
-                        // client.publish(process.env.NOTIFY, JSON.stringify(notification))
+                // SAVE LOCAL
+                NotificationModel.create({
+                    description: notification.description,
+                    serie: notification.serie,
+                    value: notification.value,
+                    name: notification.name,
+                    msg: notification.msg,
+                    timestamp: notification.timestamp
                 })
-                statusNotification = true
+
+                // SAVE SERVER - BROCKER
+                // client.publish(process.env.NOTIFY, JSON.stringify(notification))
+            })
+            statusNotification = true
         }
     } else {
         statusNotification = false
@@ -585,14 +585,14 @@ setInterval( async() => {
 
 // SAVE DATA - TI
 
-setInterval( async () => {
+setInterval(async () => {
 
     let devices = []
 
-    const data = await readModbusData(1, 0, 6);
+    const data = await readModbusData(1, 0, 6)
 
     if (data) {
-        for (let i = 0; i < 6; i++){
+        for (let i = 0; i < 6; i++) {
 
             if (i === 0) {
                 const value = data[i]
@@ -783,30 +783,28 @@ setInterval( async () => {
     const controller = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_TI, devices, new Date().getTime())
 
     // SAVE LOCAL
-    if (controller.devices.lenght > 0) {
-        const ti = new TiModel({
-            serie: process.env.SERIE,
-            mining: process.env.DEVICE_NAME,
-            level: process.env.LEVEL,
-            category: process.env.CATEGORY_TI,
-            voltaje: controller.devices[0].value,
-            temperatura: controller.devices[1].value,
-            humedad: controller.devices[2].value,
-            bateria: controller.devices[3].value,
-            door_backup: controller.devices[4].value,
-            corriente: controller.devices[5].value,
-            door_system: controller.devices[6].value,
-            timestamp: controller.timestamp
-        })
+    const ti = new TiModel({
+        serie: process.env.SERIE,
+        mining: process.env.DEVICE_NAME,
+        level: process.env.LEVEL,
+        category: process.env.CATEGORY_TI,
+        voltaje: controller.devices[0].value,
+        temperatura: controller.devices[1].value,
+        humedad: controller.devices[2].value,
+        bateria: controller.devices[3].value,
+        door_backup: controller.devices[4].value,
+        corriente: controller.devices[5].value,
+        door_system: controller.devices[6].value,
+        timestamp: controller.timestamp
+    })
 
-        await ti.save()
-    }
+    await ti.save()
 
 }, 65005)
 
 // SAVE DATA - SAFETY AND VENTILATION
 
-setInterval( async() => {
+setInterval(async () => {
 
     // const response = await axios.get(`${process.env.SERVER_URL}/wapsi`)
     // const gases = response.data
@@ -902,21 +900,21 @@ setInterval( async() => {
     const controller2 = new Controller(process.env.SERIE, process.env.DEVICE_NAME, process.env.LEVEL, process.env.CATEGORY_VE, devices2, new Date().getTime())
 
     // if (controller1.devices.lenght > 0) {
-        // const sensor = new SensorModel({
-        //     serie: process.env.SERIE,
-        //     mining: process.env.DEVICE_NAME,
-        //     level: process.env.LEVEL,
-        //     category: process.env.CATEGORY_SA,
-        //     CO: controller1.devices[0].value,
-        //     NO2: controller1.devices[1].value,
-        //     CO2: controller1.devices[2].value,
-        //     O2: controller1.devices[3].value,
-        //     temperatura: controller2.devices[0].value,
-        //     humedad: controller2.devices[1].value,
-        //     timestamp: controller1.timestamp
-        // })
+    // const sensor = new SensorModel({
+    //     serie: process.env.SERIE,
+    //     mining: process.env.DEVICE_NAME,
+    //     level: process.env.LEVEL,
+    //     category: process.env.CATEGORY_SA,
+    //     CO: controller1.devices[0].value,
+    //     NO2: controller1.devices[1].value,
+    //     CO2: controller1.devices[2].value,
+    //     O2: controller1.devices[3].value,
+    //     temperatura: controller2.devices[0].value,
+    //     humedad: controller2.devices[1].value,
+    //     timestamp: controller1.timestamp
+    // })
 
-        // await sensor.save()
+    // await sensor.save()
     // }
 
     if (controller1.devices.length > 0) {
@@ -934,7 +932,7 @@ setInterval( async() => {
 
         await safety.save()
     }
-    
+
     if (controller2.devices.length > 0) {
         const ventilation = new VentilationModel({
             serie: process.env.SERIE,
