@@ -1,16 +1,21 @@
-> [!NOTE]
-> Aqui tienes una nota
+<p><a target="_blank" href="https://app.eraser.io/workspace/kHAJsJ3MdjaYrrzGCg06" id="edit-in-eraser-github-link"><img alt="Edit in Eraser" src="https://firebasestorage.googleapis.com/v0/b/second-petal-295822.appspot.com/o/images%2Fgithub%2FOpen%20in%20Eraser.svg?alt=media&amp;token=968381c8-a7e7-472a-8ed6-4a6626da5501"></a></p>
 
-> [!TIP]
-> Aqui tienes un tip
+>  [!NOTE]
+Aqui tienes una nota
 
-> [!IMPORTANT]
-> Aqui tienes un tip
+>  [!TIP]
+Aqui tienes un tip
 
-> [!WARNING]
-> Aqui tienes un tips
+>  [!IMPORTANT]
+Aqui tienes un tip
 
-> [!CAUTION]
-> Aqui tienes un tip
+>  [!WARNING]
+Aqui tienes un tips
 
-![GitHub commit activity](https://img.shields.io/github/commit-activity/:interval/:user/:repo)
+>  [!CAUTION]
+Aqui tienes un tip
+
+
+
+
+<!--- Eraser file: https://app.eraser.io/workspace/kHAJsJ3MdjaYrrzGCg06 --->
